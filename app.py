@@ -1,10 +1,4 @@
 import torch
-from ultralytics.nn.tasks import DetectionModel
-
-# 1) Allowlist the DetectionModel class for unpickling
-# (i.e., the custom YOLOv8 model class from Ultralytics).
-torch.serialization.add_safe_globals([DetectionModel])
-
 from ultralytics import YOLO
 from flask import Flask, request, jsonify
 from PIL import Image
@@ -14,7 +8,7 @@ from io import BytesIO
 app = Flask(__name__)
 
 # 2) Load the YOLOv8 model
-model = YOLO("yolov8n.pt")  # or your custom .pt file
+model = YOLO("runs/detect/train3/weights/best.pt")  # or your custom .pt file
 # If Render has a GPU plan, you can do model.to("cuda")
 
 @app.route("/", methods=["GET"])
@@ -36,6 +30,7 @@ def detect():
 
     # 4) Annotate image
     results = results_list[0]
+    num_bboxes = len(results.boxes)
     annotated_np = results.plot()  # draws bounding boxes on the image
     annotated_img = Image.fromarray(annotated_np)
 
