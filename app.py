@@ -1,24 +1,25 @@
-
-from flask import Flask, request, jsonify
-from ultralytics import YOLO
-from PIL import Image
 import torch
+from ultralytics.nn.tasks import DetectionModel
+
+# 1) Allowlist the DetectionModel class for unpickling
+# (i.e., the custom YOLOv8 model class from Ultralytics).
+torch.serialization.add_safe_globals([DetectionModel])
+
+from ultralytics import YOLO
+from flask import Flask, request, jsonify
+from PIL import Image
 import base64
 from io import BytesIO
 
 app = Flask(__name__)
 
-# Load YOLOv8 (this downloads weights if not available locally)
-# You can specify a path or URL to a custom model if needed
-model = YOLO("yolov8n.pt")
-
-# If you want to force CPU usage or move to GPU if available, you can:
-# model.to("cuda")  # Uncomment if using a GPU instance on Render
-# model.to("cpu")   # Force CPU
+# 2) Load the YOLOv8 model
+model = YOLO("yolov8n.pt")  # or your custom .pt file
+# If Render has a GPU plan, you can do model.to("cuda")
 
 @app.route("/", methods=["GET"])
 def index():
-    return "Welcome to the YOLOv8 inference API!"
+    return "Welcome to YOLOv8!"
 
 @app.route("/detect", methods=["POST"])
 def detect():
@@ -26,37 +27,25 @@ def detect():
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files["image"]
-
-    # Load image via PIL
     image = Image.open(file.stream).convert("RGB")
 
-    # Run YOLOv8 inference
-    # results is a list of Results objects (one per image)
+    # 3) Run inference
     results_list = model.predict(image)
-
     if not results_list:
         return jsonify({"error": "No inference results"}), 500
 
-    # Get the first Results object (we only sent one image)
+    # 4) Annotate image
     results = results_list[0]
-
-    # The .plot() method returns a numpy array (with bounding boxes drawn)
-    annotated_np = results.plot()
-
-    # Convert the numpy array to a PIL Image
+    annotated_np = results.plot()  # draws bounding boxes on the image
     annotated_img = Image.fromarray(annotated_np)
 
-    # Convert to bytes
+    # 5) Convert to base64 and return
     img_io = BytesIO()
     annotated_img.save(img_io, format="JPEG")
     img_io.seek(0)
-
-    # Encode as base64 string
     b64_string = base64.b64encode(img_io.read()).decode("utf-8")
 
-    # Return JSON containing the base64-encoded annotated image
     return jsonify({"boxed_image": b64_string})
 
 if __name__ == "__main__":
-    # For local testing; on Render you'll specify this in the Start Command
     app.run(host="0.0.0.0", port=5000)
