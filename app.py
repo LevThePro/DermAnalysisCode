@@ -8,7 +8,7 @@ from io import BytesIO
 app = Flask(__name__)
 
 # 2) Load the YOLOv8 model
-model = YOLO("runs/detect/train3/weights/best.pt")  # or your custom .pt file
+model = YOLO("train3/weights/best.pt")  # or your custom .pt file
 # If Render has a GPU plan, you can do model.to("cuda")
 
 @app.route("/", methods=["GET"])
